@@ -1,0 +1,1 @@
+run_id,date,git_commit,dataset,dataset_version,split_manifest_sha256,model,pretrained_weights,seed,epochs,batch_size,learning_rate,weight_decay,device,python,torch,torchvision,checkpoint_path,source_val_macro_f1,source_test_macro_f1,target_name,target_macro_f1,notes

@@ -1,0 +1,72 @@
+{
+  "protocol_id": "facial_xai_judge_audit_v1",
+  "status": "planning_template_not_preregistered",
+  "created": "2026-11-11",
+  "primary_dataset": "MFEA-Main",
+  "pilot": {
+    "target_images": 50,
+    "seed": 20261111,
+    "excluded_from_confirmatory": true
+  },
+  "confirmatory": {
+    "target_images": 200,
+    "seed": 20261112,
+    "stratification_field": "source",
+    "unit": "image_with_all_variants",
+    "bootstrap_unit": "image"
+  },
+  "conditions": [
+    "original_vlm",
+    "au_annotation_inconsistent",
+    "label_annotation_inconsistent",
+    "style_expanded"
+  ],
+  "primary_outcomes": [
+    "judge_score_difference_original_minus_au_edit",
+    "judge_score_difference_original_minus_label_edit",
+    "style_score_difference_expanded_minus_original",
+    "human_pairwise_ordering_accuracy_on_non_tied_pairs",
+    "spearman_correlation_human_mean_vs_judge_score"
+  ],
+  "secondary_outcomes": [
+    "ordinal_krippendorff_alpha",
+    "judge_claim_match_to_recorded_aus",
+    "judge_claim_match_to_recorded_emotion_labels",
+    "annotation_only_probe_sensitivity"
+  ],
+  "human_ratings": {
+    "target_raters": 3,
+    "target_paired_images": 200,
+    "approval_required_before_collection": true,
+    "show_dataset_annotations": false,
+    "rate_inner_emotion": false
+  },
+  "generation": {
+    "default_model": "Qwen/Qwen3-VL-2B-Instruct",
+    "decoding": "greedy_do_sample_false",
+    "max_new_tokens": 160
+  },
+  "judging": {
+    "default_model": "Qwen/Qwen3-VL-4B-Instruct",
+    "score_range": [0, 4],
+    "condition_blind": true
+  },
+  "exclusions": [
+    "missing_or_corrupt_image",
+    "face_not_visible_or_unreadable",
+    "annotation_record_unusable_for_the_prespecified_comparison"
+  ],
+  "interpretation_limits": [
+    "annotation_inconsistent_does_not_mean_visually_false_without_exhaustive_annotation_evidence",
+    "visible_cue_support_does_not_establish_internal_emotion",
+    "judge_score_does_not_establish_classifier_feature_use_or_causal_faithfulness",
+    "mini1_legacy_outputs_are_exploratory_and_not_in_confirmatory_sample"
+  ],
+  "before_confirmatory_run": [
+    "replace planning status with dated preregistration link or archived protocol hash",
+    "record exact dataset release and source dataset terms",
+    "record pinned model revisions and any quantization",
+    "record ethics approval or institutional determination before human ratings",
+    "freeze eligibility and missing-output rules"
+  ]
+}

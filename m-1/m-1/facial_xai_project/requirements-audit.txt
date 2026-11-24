@@ -1,0 +1,5 @@
+# Local Qwen3-VL inference; install a PyTorch build matching the laptop/GPU.
+torch>=2.6
+transformers>=4.57.0
+accelerate>=1.0
+pillow>=10.0

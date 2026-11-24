@@ -1,0 +1,9 @@
+data/
+runs/
+checkpoints/
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+**/condition_key.csv
+**/*-ratings.csv

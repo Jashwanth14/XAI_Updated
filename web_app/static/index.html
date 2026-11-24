@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multimodal XAI · FC-MSCAM vs Grad-CAM &amp; Grad-ECLIP Platform</title>
+  <style>
+    /* ============================================================
+       RESET & BASE THEME
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0a0e17;
+      --bg2:       #111827;
+      --bg3:       #1e293b;
+      --border:    #2d3748;
+      --border-lit:#3b82f6;
+      --accent:    #3b82f6;
+      --accent2:   #8b5cf6;
+      --teal:      #06b6d4;
+      --gold:      #f59e0b;
+      --red:       #ef4444;
+      --green:     #10b981;
+      --text:      #f8fafc;
+      --muted:     #94a3b8;
+      --pill-bg:   #1e293b;
+      --radius:    10px;
+      --radius-sm: 6px;
+    }
+    html { font-size: 14px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; }
+    img { max-width: 100%; display: block; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* ============================================================
+       TOP BAR
+    ============================================================ */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 24px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; }
+    .topbar-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -.2px; }
+    .topbar-sub { font-size: 11px; color: var(--muted); }
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.35);
+      color: var(--green); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+    /* ============================================================
+       LAYOUT
+    ============================================================ */
+    .app { display: flex; flex: 1; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 300px; flex-shrink: 0;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex; flex-direction: column;
+    }
+    .sidebar-section { padding: 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-section-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: .6px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+    }
+
+    /* Form controls */
+    .form-group { margin-bottom: 12px; }
+    .form-label { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
+    .form-select {
+      width: 100%; padding: 8px 10px; background: var(--bg3);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text); font-size: 12px; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      padding-right: 28px;
+    }
+    .form-select:focus { outline: none; border-color: var(--accent); }
+
+    /* Sliders */
+    .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .slider-val { font-size: 11px; font-weight: 700; color: var(--teal); }
+    .form-slider { width: 100%; accent-color: var(--teal); cursor: pointer; }
+
+    /* Upload zone */
+    .dropzone {
+      border: 2px dashed var(--border); border-radius: var(--radius-sm);
+      padding: 14px; text-align: center; cursor: pointer;
+      background: rgba(30, 41, 59, 0.4); transition: border-color .2s, background .2s;
+      margin-bottom: 12px;
+    }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: rgba(59, 130, 246, 0.08); }
+    .dropzone-icon { font-size: 24px; margin-bottom: 4px; }
+    .dropzone-text { font-size: 11px; color: var(--muted); }
+    .dropzone-text b { color: var(--text); }
+    #fileInput { display: none; }
+
+    /* Sample grid */
+    .samples-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 2px 8px; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+    .filter-btn {
+      padding: 3px 8px; font-size: 10px; font-weight: 600; border-radius: 4px;
+      background: var(--bg3); color: var(--muted); border: 1px solid var(--border);
+      transition: all .15s;
+    }
+    .filter-btn:hover, .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .samples-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; max-height: 240px; overflow-y: auto; }
+    .sample-thumb {
+      aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; cursor: pointer;
+      border: 2px solid transparent; transition: border-color .2s, transform .15s;
+    }
+    .sample-thumb:hover { border-color: var(--accent); transform: scale(1.04); }
+    .sample-thumb.active { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(6,182,212,.4); }
+    .sample-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ============================================================
+       MAIN CONTENT
+    ============================================================ */
+    .main { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* Viewer Container */
+    .image-viewer {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .viewer-header {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .view-tabs { display: flex; gap: 4px; }
+    .view-tab {
+      padding: 5px 12px; font-size: 11px; font-weight: 600; border-radius: var(--radius-sm);
+      background: var(--bg3); color: var(--muted); border: 1px solid var(--border);
+    }
+    .view-tab.active, .view-tab:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .view-tab.special { background: linear-gradient(135deg, var(--teal), var(--accent)); color: #fff; border: none; }
+
+    .viewer-inner {
+      min-height: 280px; display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at center, #1e293b 0%, #0a0e17 100%);
+      padding: 16px; position: relative;
+    }
+    .viewer-img { max-height: 320px; max-width: 100%; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,.6); }
+    .viewer-placeholder { text-align: center; color: var(--muted); }
+    .viewer-placeholder .icon { font-size: 44px; margin-bottom: 8px; opacity: .5; }
+
+    .viewer-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--bg3); border-top: 1px solid var(--border);
+    }
+    .viewer-filename { font-size: 11px; color: var(--muted); }
+    .btn-primary {
+      display: flex; align-items: center; gap: 6px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border-radius: var(--radius-sm); padding: 8px 18px;
+      font-size: 12px; font-weight: 700; transition: transform .15s, opacity .15s;
+    }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+
+    /* ============================================================
+       STATS ROW
+    ============================================================ */
+    .stats-row {
+      display: flex; background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .stat-item {
+      flex: 1; padding: 12px 16px; border-right: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-value { font-size: 18px; font-weight: 800; }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+    .emotion-pill {
+      padding: 6px 16px; border-radius: 8px; font-size: 16px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .5px; background: #3b82f6; color: #fff;
+    }
+
+    /* ============================================================
+       SIDE-BY-SIDE COMPARISON PANEL (TRIPLE-VIEW)
+    ============================================================ */
+    .comparison-section {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px;
+    }
+    .comparison-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+    }
+    .comparison-title {
+      font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--teal); display: flex; align-items: center; gap: 8px;
+    }
+    .comparison-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    }
+    .cmp-card {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 10px; display: flex; flex-direction: column; gap: 8px; position: relative;
+    }
+    .cmp-card.highlight {
+      border: 2px solid var(--teal); background: rgba(6, 182, 212, 0.05);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+    }
+    .cmp-badge {
+      position: absolute; top: 14px; right: 14px;
+      background: var(--teal); color: #000; font-size: 9px; font-weight: 800;
+      padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+    }
+    .cmp-name { font-size: 12px; font-weight: 700; }
+    .cmp-img { width: 100%; border-radius: 6px; aspect-ratio: 1; object-fit: cover; }
+    .cmp-metrics { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+    .cmp-metrics b { color: var(--text); }
+    .cmp-regions { font-size: 10px; color: #cbd5e1; }
+
+    /* ============================================================
+       BOTTOM PANELS (Probabilities, AUs, Explanation)
+    ============================================================ */
+    .panels-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+      display: flex; flex-direction: column;
+    }
+    .panel-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-body { padding: 16px; flex: 1; }
+
+    .prob-bar-row { margin-bottom: 10px; }
+    .prob-bar-label { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+    .prob-bar-track { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+    .prob-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--teal)); }
+
+    .au-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .au-pill {
+      background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4);
+      color: #c084fc; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+    }
+    .au-desc-box { font-size: 11px; color: var(--muted); line-height: 1.5; white-space: pre-line; }
+
+    .explanation-text { font-size: 12px; line-height: 1.6; color: #e2e8f0; }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed; inset: 0; background: rgba(10, 14, 23, 0.75); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 44px; height: 44px; border: 4px solid var(--border);
+      border-top-color: var(--teal); border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-icon">🔬</div>
+    <div>
+      <div class="topbar-title">Multimodal Facial XAI · FC-MSCAM Evidence Panel</div>
+      <div class="topbar-sub">Compare FC-MSCAM (Ours) vs. Grad-ECLIP vs. Standard Grad-CAM</div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <span class="status-dot"></span>
+    System Ready
+  </div>
+</header>
+
+<!-- MAIN APP -->
+<div class="app">
+
+  <!-- SIDEBAR CONTROLS -->
+  <aside class="sidebar">
+
+    <!-- Model & Attention Selection -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">⚙️ Model &amp; Attribution</div>
+
+      <div class="form-group">
+        <label class="form-label">Emotion Classifier</label>
+        <select class="form-select" id="modelSelect">
+          <option value="convnext_soap_affectnet" selected>🌟 ConvNeXt-Tiny (AffectNet-8 SOAP · 74.35% Val)</option>
+          <option value="convnext_tiny">ConvNeXt-Tiny (AffectNet-8 Baseline · 74.1% Val)</option>
+          <option value="regnet_y_800mf">RegNetY-800MF (AffectNet-8 · 72.7% Val)</option>
+          <option value="resnet18">ResNet-18 (AffectNet-8 Baseline)</option>
+          <option value="convnext_soap_fer2013">ConvNeXt-Tiny (FER-2013 SOAP · 70.06% Test)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Attention Method</label>
+        <select class="form-select" id="attnSelect">
+          <option value="compare_all">⚡ Compare All 3 Methods Side-by-Side</option>
+          <option value="fc_mscam" selected>🌟 FC-MSCAM (Ours · Novel Multi-Scale)</option>
+          <option value="grad_eclip">Grad-ECLIP Baseline</option>
+          <option value="grad_cam">Standard Grad-CAM Baseline</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- FC-MSCAM Hyperparameters -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">🎛️ FC-MSCAM Fine-Tuning</div>
+
+      <div class="form-group">
+        <div class="slider-row">
+          <span class="form-label" style="margin:0;">Contrastive Margin (&gamma;)</span>
+          <span class="slider-val" id="gammaVal">0.60</span>
+        </div>
+        <input type="range" class="form-slider" id="gammaSlider" min="0" max="1" step="0.05" value="0.60" />
+        <span style="font-size:9px;color:var(--muted);">Suppresses runner-up confounder gradient bleed.</span>
+      </div>
+
+      <div class="form-group">
+        <div class="slider-row">
+          <span class="form-label" style="margin:0;">Multi-Scale Sharpening (&beta;)</span>
+          <span class="slider-val" id="betaVal">0.70</span>
+        </div>
+        <input type="range" class="form-slider" id="betaSlider" min="0.2" max="1.5" step="0.05" value="0.70" />
+        <span style="font-size:9px;color:var(--muted);">Fuses 14x14 muscle boundaries with 7x7 semantics.</span>
+      </div>
+    </div>
+
+    <!-- Upload Custom Image -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">📁 Test Custom Image</div>
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone-icon">📷</div>
+        <div class="dropzone-text"><b>Click or Drag</b> image here<br />JPG, PNG, WebP</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" />
+    </div>
+
+    <!-- Preset Samples Gallery -->
+    <div class="sidebar-section" style="flex:1;">
+      <div class="samples-header">
+        <div class="sidebar-section-title" style="margin-bottom:0;">🖼️ Sample Faces</div>
+        <span class="badge" id="sampleCount">100</span>
+      </div>
+
+      <div class="filter-bar" id="filterBar">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="happy">Happy</button>
+        <button class="filter-btn" data-filter="sad">Sad</button>
+        <button class="filter-btn" data-filter="anger">Anger</button>
+        <button class="filter-btn" data-filter="fear">Fear</button>
+        <button class="filter-btn" data-filter="disgust">Disgust</button>
+        <button class="filter-btn" data-filter="surprise">Surprise</button>
+        <button class="filter-btn" data-filter="neutral">Neutral</button>
+      </div>
+
+      <div class="samples-grid" id="samplesGrid"></div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN DASHBOARD -->
+  <main class="main">
+
+    <!-- Main Viewer Card -->
+    <div class="image-viewer">
+      <div class="viewer-header">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Visual Attribution View</span>
+        <div class="view-tabs" id="viewTabs">
+          <button class="view-tab active" data-view="primary_overlay">Primary Overlay</button>
+          <button class="view-tab" data-view="primary_heatmap">Heatmap Only</button>
+          <button class="view-tab" data-view="landmarks">468 Landmarks</button>
+          <button class="view-tab" data-view="face_crop">Face Crop</button>
+        </div>
+      </div>
+
+      <div class="viewer-inner">
+        <div class="viewer-placeholder" id="viewerPlaceholder">
+          <div class="icon">👤</div>
+          <p>Select a sample from the left or upload your own face image.</p>
+        </div>
+        <img class="viewer-img" id="mainViewerImg" src="" alt="Attribution" style="display:none;" />
+      </div>
+
+      <div class="viewer-footer">
+        <span class="viewer-filename" id="viewerFilename">No image analyzed yet</span>
+        <button class="btn-primary" id="analyzeBtn" onclick="runAnalysis()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Run Live XAI Analysis
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-row" id="statsRow" style="display:none;">
+      <div class="stat-item">
+        <div class="emotion-pill" id="statEmotion">—</div>
+      </div>
+      <div class="stat-item">
+        <div>
+          <div class="stat-value" id="statConf" style="color:var(--teal);">—</div>
+          <div class="stat-label">Confidence</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <div>
+          <div class="stat-value" id="statEntropy">—</div>
+          <div class="stat-label">Entropy H(P)</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <div>
+          <div class="stat-value" id="statAUs" style="color:#c084fc;">—</div>
+          <div class="stat-label">Active AUs</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <div>
+          <div class="stat-value" id="statLatency" style="color:var(--gold);">—</div>
+          <div class="stat-label">Inference Latency</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRIPLE COMPARISON SECTION -->
+    <div class="comparison-section" id="comparisonSection" style="display:none;">
+      <div class="comparison-header">
+        <div class="comparison-title">
+          <span>⚡ Attribution Method Comparison (Same Model &amp; Face)</span>
+        </div>
+        <span style="font-size:11px;color:var(--muted);">FC-MSCAM concentrates gradients strictly on active muscle contours</span>
+      </div>
+
+      <div class="comparison-grid">
+
+        <!-- Method 1: Standard Grad-CAM -->
+        <div class="cmp-card" id="cardGradCam">
+          <div class="cmp-name">Standard Grad-CAM</div>
+          <img class="cmp-img" id="imgGradCam" src="" alt="Grad-CAM" />
+          <div class="cmp-metrics">
+            <div>Pointing Score ($EBPG_{\text{FACS}}$): <b id="ebpgGradCam">—</b></div>
+            <div>Top-5% Faithfulness Drop: <b id="dropGradCam">—</b></div>
+            <div class="cmp-regions">Focus: <span id="regGradCam">—</span></div>
+          </div>
+        </div>
+
+        <!-- Method 2: Grad-ECLIP -->
+        <div class="cmp-card" id="cardGradEclip">
+          <div class="cmp-name">Grad-ECLIP Baseline</div>
+          <img class="cmp-img" id="imgGradEclip" src="" alt="Grad-ECLIP" />
+          <div class="cmp-metrics">
+            <div>Pointing Score ($EBPG_{\text{FACS}}$): <b id="ebpgGradEclip">—</b></div>
+            <div>Top-5% Faithfulness Drop: <b id="dropGradEclip">—</b></div>
+            <div class="cmp-regions">Focus: <span id="regGradEclip">—</span></div>
+          </div>
+        </div>
+
+        <!-- Method 3: FC-MSCAM (Ours) -->
+        <div class="cmp-card highlight" id="cardFcMscam">
+          <span class="cmp-badge">🌟 Ours</span>
+          <div class="cmp-name" style="color:var(--teal);">FC-MSCAM (FACS-Contrastive Multi-Scale)</div>
+          <img class="cmp-img" id="imgFcMscam" src="" alt="FC-MSCAM" />
+          <div class="cmp-metrics">
+            <div>Pointing Score ($EBPG_{\text{FACS}}$): <b id="ebpgFcMscam" style="color:var(--teal);">—</b></div>
+            <div>Top-5% Faithfulness Drop: <b id="dropFcMscam" style="color:var(--teal);">—</b></div>
+            <div class="cmp-regions">Focus: <span id="regFcMscam" style="color:#67e8f9;">—</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- LOWER PANELS: Probabilities, AUs, Explanation -->
+    <div class="panels-row" id="lowerPanels" style="display:none;">
+
+      <!-- Probabilities -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>📊 Emotion Class Probabilities</span>
+        </div>
+        <div class="panel-body" id="probBars"></div>
+      </div>
+
+      <!-- FACS Action Units -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>😊 Anatomical Action Units (FACS)</span>
+        </div>
+        <div class="panel-body">
+          <div class="au-pills" id="auPills"></div>
+          <div class="au-desc-box" id="auDesc"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Clinical Explanation Panel -->
+    <div class="panel" id="explPanel" style="display:none;">
+      <div class="panel-header">
+        <span>📝 Multimodal Neuro-Symbolic Explanation</span>
+      </div>
+      <div class="panel-body">
+        <p class="explanation-text" id="explanationText">—</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ================================================================
+   APPLICATION LOGIC & STATE
+=============================================================== */
+let currentSample = null;
+let customFile = null;
+let currentResults = null;
+let activeView = 'primary_overlay';
+
+const EMOTION_COLORS = {
+  happy: '#10b981', sad: '#3b82f6', anger: '#ef4444', angry: '#ef4444',
+  fear: '#8b5cf6', disgust: '#f59e0b', surprise: '#06b6d4',
+  contempt: '#d97706', neutral: '#64748b'
+};
+
+// Init
+window.addEventListener('DOMContentLoaded', async () => {
+  setupSliderListeners();
+  setupUploadListeners();
+  setupViewTabs();
+  await loadSamples();
+});
+
+// Slider updates
+function setupSliderListeners() {
+  const gSlider = document.getElementById('gammaSlider');
+  const gVal = document.getElementById('gammaVal');
+  gSlider.addEventListener('input', () => { gVal.textContent = parseFloat(gSlider.value).toFixed(2); });
+
+  const bSlider = document.getElementById('betaSlider');
+  const bVal = document.getElementById('betaVal');
+  bSlider.addEventListener('input', () => { bVal.textContent = parseFloat(bSlider.value).toFixed(2); });
+}
+
+// Upload & Drag-and-drop
+function setupUploadListeners() {
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelected(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files && fileInput.files[0]) {
+      handleFileSelected(fileInput.files[0]);
+    }
+  });
+}
+
+function handleFileSelected(file) {
+  customFile = file;
+  currentSample = null;
+  document.querySelectorAll('.sample-thumb').forEach(t => t.classList.remove('active'));
+  document.getElementById('viewerFilename').textContent = `Uploaded: ${file.name}`;
+
+  // Preview local image
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    showMainImage(e.target.result);
+  };
+  reader.readAsDataURL(file);
+
+  // Auto run analysis
+  runAnalysis();
+}
+
+// Load preset samples
+async function loadSamples() {
+  try {
+    const res = await fetch('/api/samples');
+    if (res.ok) {
+      const samples = await res.json();
+      renderSamplesGrid(samples);
+      setupFilterButtons(samples);
+      if (samples.length > 0) selectSample(samples[0]);
+    }
+  } catch (err) {
+    console.error('Failed to load samples:', err);
+  }
+}
+
+function renderSamplesGrid(samples) {
+  const grid = document.getElementById('samplesGrid');
+  grid.innerHTML = '';
+  document.getElementById('sampleCount').textContent = samples.length;
+
+  samples.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'sample-thumb';
+    div.dataset.id = s.id;
+    const url = s.url.startsWith('/') ? s.url : '/' + s.url;
+    div.innerHTML = `<img src="${url}" alt="${s.title}" loading="lazy" />`;
+    div.addEventListener('click', () => selectSample(s));
+    grid.appendChild(div);
+  });
+}
+
+function setupFilterButtons(allSamples) {
+  document.getElementById('filterBar').addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    const filtered = (f === 'all')
+      ? allSamples
+      : allSamples.filter(s => (s.emotion || '').toLowerCase() === f);
+    renderSamplesGrid(filtered);
+  });
+}
+
+function selectSample(sample) {
+  currentSample = sample;
+  customFile = null;
+  document.querySelectorAll('.sample-thumb').forEach(t => {
+    t.classList.toggle('active', parseInt(t.dataset.id) === sample.id);
+  });
+  document.getElementById('viewerFilename').textContent = sample.filename || sample.title;
+
+  const url = sample.url.startsWith('/') ? sample.url : '/' + sample.url;
+  showMainImage(url);
+
+  // Run live analysis on selected sample
+  runAnalysis();
+}
+
+function showMainImage(src) {
+  document.getElementById('viewerPlaceholder').style.display = 'none';
+  const img = document.getElementById('mainViewerImg');
+  img.src = src;
+  img.style.display = 'block';
+}
+
+function setupViewTabs() {
+  document.getElementById('viewTabs').addEventListener('click', e => {
+    const tab = e.target.closest('.view-tab');
+    if (!tab) return;
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeView = tab.dataset.view;
+    updateViewImage();
+  });
+}
+
+function updateViewImage() {
+  if (!currentResults) return;
+  const prim = currentResults.primary_attention || {};
+  let targetSrc = '';
+
+  if (activeView === 'primary_overlay') {
+    targetSrc = prim.overlay_b64 || currentResults.face_crop_b64;
+  } else if (activeView === 'primary_heatmap') {
+    targetSrc = prim.heatmap_b64 || prim.overlay_b64;
+  } else if (activeView === 'landmarks') {
+    targetSrc = currentResults.landmarks_b64 || currentResults.face_crop_b64;
+  } else if (activeView === 'face_crop') {
+    targetSrc = currentResults.face_crop_b64;
+  }
+
+  if (targetSrc) showMainImage(targetSrc);
+}
+
+// Run Analysis via POST /api/analyze
+async function runAnalysis() {
+  if (!currentSample && !customFile) return;
+
+  showLoading(true);
+  const formData = new FormData();
+
+  if (customFile) {
+    formData.append('file', customFile);
+  } else if (currentSample) {
+    formData.append('sample_id', currentSample.id);
+  }
+
+  formData.append('model_name', document.getElementById('modelSelect').value);
+  formData.append('attention_method', document.getElementById('attnSelect').value);
+  formData.append('gamma', document.getElementById('gammaSlider').value);
+  formData.append('beta', document.getElementById('betaSlider').value);
+
+  try {
+    const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      alert(data.error || 'Analysis failed');
+      showLoading(false);
+      return;
+    }
+
+    currentResults = data;
+    renderResults(data);
+  } catch (err) {
+    console.error('Analysis error:', err);
+    alert('Failed to connect to backend server.');
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Render Results on UI
+function renderResults(data) {
+  // Show panels
+  document.getElementById('statsRow').style.display = 'flex';
+  document.getElementById('comparisonSection').style.display = 'block';
+  document.getElementById('lowerPanels').style.display = 'grid';
+  document.getElementById('explPanel').style.display = 'block';
+
+  // Stats row
+  const emo = (data.emotion.label || 'neutral').toLowerCase();
+  const pill = document.getElementById('statEmotion');
+  pill.textContent = emo.toUpperCase();
+  pill.style.background = EMOTION_COLORS[emo] || '#3b82f6';
+
+  document.getElementById('statConf').textContent = `${(data.emotion.confidence * 100).toFixed(1)}%`;
+  document.getElementById('statEntropy').textContent = `${data.emotion.entropy} bits`;
+  document.getElementById('statAUs').textContent = `${data.action_units.active.length} AUs`;
+  document.getElementById('statLatency').textContent = `${data.processing_time}s`;
+
+  // Update Main Image according to active tab
+  updateViewImage();
+
+  // Render Triple Comparison Grid
+  const cmps = data.comparisons || {};
+  renderCmpCard('GradCam', cmps.grad_cam);
+  renderCmpCard('GradEclip', cmps.grad_eclip);
+  renderCmpCard('FcMscam', cmps.fc_mscam);
+
+  // Probability Bars
+  const pb = document.getElementById('probBars');
+  pb.innerHTML = '';
+  (data.emotion.all_predictions || []).forEach(p => {
+    const pct = (p.confidence * 100).toFixed(1);
+    const c = EMOTION_COLORS[p.label.toLowerCase()] || '#3b82f6';
+    pb.innerHTML += `
+      <div class="prob-bar-row">
+        <div class="prob-bar-label">
+          <span style="text-transform:capitalize;">${p.label}</span>
+          <span style="font-weight:700;color:${c};">${pct}%</span>
+        </div>
+        <div class="prob-bar-track">
+          <div class="prob-bar-fill" style="width:${pct}%;background:${c};"></div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Action Units
+  const auPills = document.getElementById('auPills');
+  auPills.innerHTML = data.action_units.active.map(au =>
+    `<span class="au-pill">${au}</span>`
+  ).join('');
+  document.getElementById('auDesc').textContent = data.action_units.descriptions || 'No strong AU displacement detected.';
+
+  // Explanation
+  document.getElementById('explanationText').textContent = data.explanation || '—';
+}
+
+function renderCmpCard(suffix, cmpData) {
+  if (!cmpData) return;
+  const imgEl = document.getElementById(`img${suffix}`);
+  if (cmpData.overlay_b64) imgEl.src = cmpData.overlay_b64;
+
+  const ebpgEl = document.getElementById(`ebpg${suffix}`);
+  if (ebpgEl && cmpData.ebpg_score !== undefined) {
+    ebpgEl.textContent = `${(cmpData.ebpg_score * 100).toFixed(1)}%`;
+  }
+
+  const dropEl = document.getElementById(`drop${suffix}`);
+  if (dropEl && cmpData.drop5_faithfulness !== undefined) {
+    dropEl.textContent = `${(cmpData.drop5_faithfulness * 100).toFixed(1)}%`;
+  }
+
+  const regEl = document.getElementById(`reg${suffix}`);
+  if (regEl && cmpData.regions) {
+    regEl.textContent = cmpData.regions.slice(0, 3).join(', ') || 'Global';
+  }
+}
+
+function showLoading(show) {
+  document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+# Data & Models (too large for GitHub > 100MB)
+data/
+**/data/
+checkpoints/
+**/checkpoints/
+*.ckpt
+*.bin
+*.safetensors
+*.pth
+*.pt
+*.tmp
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+**/__MACOSX/
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs & Large Runs
+*.log
+wandb/
+runs/
+**/runs/
+
+# Datasets (thousands of raw images, gigabytes)
+dataset/
+dataset_cropped/
+**/fer-2013-dataset/
+yolov8n.pt
+labels.csv
+
+# Generated Run Outputs and Precomputed Caches (>250MB)
+outputs/
+**/outputs/
+web_app/static/precomputed/
+**/precomputed/
+

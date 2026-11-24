@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>m-1 Facial XAI · Multi-Model Testing Panel</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f17;
+      --card-bg: #141b26;
+      --card-border: #1f2b3e;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 12px;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #111722;
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .brand h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
+    .brand p { font-size: 12px; color: var(--text-muted); }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--success);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+    main {
+      flex: 1;
+      max-width: 1300px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Configuration & Model Selection Bar */
+    .controls-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      align-items: center;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .control-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .control-select, .control-range {
+      background: #0d121c;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .control-select:focus { border-color: var(--accent); }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 38px;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 38px;
+      height: 20px;
+      cursor: pointer;
+    }
+    .toggle-switch input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0; background: var(--card-border);
+      border-radius: 20px; transition: background 0.2s;
+    }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
+      border-radius: 50%; background: #fff; transition: transform 0.2s;
+    }
+    .toggle-switch input:checked ~ .toggle-track { background: var(--accent); }
+    .toggle-switch input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+    /* Upload Zone */
+    .upload-container {
+      background: var(--card-bg);
+      border: 2px dashed var(--card-border);
+      border-radius: var(--radius);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .upload-container:hover, .upload-container.dragover {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.05);
+    }
+    .upload-icon { font-size: 40px; margin-bottom: 10px; }
+    .upload-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .upload-subtitle { font-size: 12px; color: var(--text-muted); }
+    #fileInput { display: none; }
+
+    /* Preset Samples */
+    .presets-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+    }
+    .presets-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .presets-grid {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    .sample-pill {
+      flex: 0 0 auto;
+      background: #192233;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+      width: 76px;
+    }
+    .sample-pill:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+    }
+    .sample-pill img {
+      width: 64px;
+      height: 64px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #000;
+    }
+    .sample-pill span {
+      font-size: 11px;
+      margin-top: 5px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
+    /* Result Dashboard */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .results-grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel-header {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text);
+    }
+
+    /* Visual Comparison Box */
+    .visual-comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .visual-box {
+      background: #0d121c;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .visual-label {
+      background: #17202e;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .visual-img-wrap {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
+    .visual-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+
+    /* Top Prediction Hero */
+    .hero-pred {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(59, 130, 246, 0.08));
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pred-main {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .pred-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .pred-emotion {
+      font-size: 26px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .confidence-stats {
+      display: flex;
+      gap: 16px;
+      text-align: right;
+    }
+    .stat-box .val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--success);
+    }
+    .stat-box .lbl {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    /* Class Probability Bars */
+    .prob-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .prob-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .prob-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .prob-meta span:first-child { text-transform: capitalize; }
+    .bar-bg {
+      height: 8px;
+      background: #1e2838;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #38bdf8);
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+
+    /* XAI Insight Box */
+    .insight-box {
+      background: #111722;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    .insight-title {
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Loading overlay */
+    .loading-spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🔬</div>
+      <div>
+        <h1>m-1 Facial XAI Testing Panel</h1>
+        <p>Model Evaluation · FER-2013 · Grad-CAM Visual Evidence</p>
+      </div>
+    </div>
+    <div class="status-badge" id="headerStatus">
+      <span class="status-dot"></span>
+      <span id="headerModelText">SOAP ConvNeXt (70.6% Acc)</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Options & Model Selection Toolbar -->
+    <div class="controls-bar">
+      <div class="control-group">
+        <label class="control-label" for="modelSelect">Select Model Checkpoint</label>
+        <select class="control-select" id="modelSelect">
+          <option value="">Loading models...</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label" for="targetSelect">Explain Target Class</label>
+        <select class="control-select" id="targetSelect">
+          <option value="auto">Predicted Emotion (Default)</option>
+          <option value="angry">Angry</option>
+          <option value="disgust">Disgust</option>
+          <option value="fear">Fear</option>
+          <option value="happy">Happy</option>
+          <option value="sad">Sad</option>
+          <option value="surprise">Surprise</option>
+          <option value="neutral">Neutral</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label" for="cmapSelect">Heatmap Colormap</label>
+        <select class="control-select" id="cmapSelect">
+          <option value="jet">Jet (Classic Blue-to-Red)</option>
+          <option value="turbo">Turbo (High-contrast Rainbow)</option>
+          <option value="viridis">Viridis (Perceptual Uniform)</option>
+          <option value="inferno">Inferno (High-energy Heat)</option>
+          <option value="plasma">Plasma</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <div style="display:flex; justify-content:space-between;">
+          <label class="control-label" for="alphaRange">Heatmap Opacity</label>
+          <span id="alphaVal" style="font-size:11px; color:var(--text-muted);">45%</span>
+        </div>
+        <input type="range" class="control-range" id="alphaRange" min="0.1" max="0.9" step="0.05" value="0.45" />
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Face Processing</label>
+        <div class="toggle-row">
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoCropToggle" checked />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+          <span style="font-size:12px; font-weight:600;" id="cropLabel">Auto Face Crop</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Dropzone -->
+    <div class="upload-container" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" accept="image/*" />
+      <div class="upload-icon">📸</div>
+      <div class="upload-title">Drop an image here, click to browse, or paste with Ctrl+V</div>
+      <div class="upload-subtitle">Works with full face photos, selfies, or cropped 48x48 expressions</div>
+    </div>
+
+    <!-- Preset Samples from FER-2013 Test Set -->
+    <div class="presets-card">
+      <div class="presets-title">
+        <span>Click to test preset samples from FER-2013 test set</span>
+        <span id="sampleCount" style="color: var(--accent);">Loading...</span>
+      </div>
+      <div class="presets-grid" id="presetGrid"></div>
+    </div>
+
+    <!-- Results Area (Hidden until first inference) -->
+    <div class="results-grid" id="resultsArea" style="display: none;">
+      <!-- Left Panel: Visual Evidence -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>🔥 Grad-CAM Visual Attention</span>
+          <span id="activeTargetBadge" style="font-size:11px; background:rgba(99,102,241,0.15); color:var(--accent); padding:3px 8px; border-radius:12px;">Class: Happy</span>
+        </div>
+
+        <div class="visual-comparison">
+          <div class="visual-box">
+            <div class="visual-label">Processed Face (224×224)</div>
+            <div class="visual-img-wrap">
+              <img id="cropImg" src="" alt="Cropped Face" />
+            </div>
+          </div>
+          <div class="visual-box">
+            <div class="visual-label">Grad-CAM Attribution</div>
+            <div class="visual-img-wrap">
+              <img id="camImg" src="" alt="Grad-CAM Overlay" />
+            </div>
+          </div>
+        </div>
+
+        <div class="insight-box">
+          <div class="insight-title"><span>💡</span> Explainability Interpretation</div>
+          <p id="explainText">Grad-CAM highlights the discriminative facial features (lips, brows, cheeks) that caused the neural network to output this prediction.</p>
+        </div>
+      </div>
+
+      <!-- Right Panel: Emotion Predictions -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>📊 Model Predictions &amp; Calibration</span>
+          <span id="activeModelBadge" style="font-size:11px; color:var(--text-muted);">Model: SOAP</span>
+        </div>
+
+        <!-- Hero Card -->
+        <div class="hero-pred">
+          <div class="pred-main">
+            <span class="pred-tag">Predicted Expression</span>
+            <span class="pred-emotion" id="heroEmotion">—</span>
+            <span id="faceDetectStatus" style="font-size: 11px; color: var(--text-muted);">Face detected &amp; cropped</span>
+          </div>
+          <div class="confidence-stats">
+            <div class="stat-box">
+              <div class="val" id="calibConfVal">—%</div>
+              <div class="lbl">Calibrated Conf (T=2.28)</div>
+            </div>
+            <div class="stat-box">
+              <div class="val" id="rawConfVal" style="color: var(--text-muted); font-size: 18px;">—%</div>
+              <div class="lbl">Raw Softmax</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7-class Probability Bars -->
+        <div class="prob-bars" id="probBars"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const EMOTION_COLORS = {
+      happy: '#4ade80',
+      sad: '#60a5fa',
+      angry: '#f87171',
+      fear: '#c084fc',
+      surprise: '#38bdf8',
+      neutral: '#94a3b8',
+      disgust: '#fbbf24'
+    };
+
+    let currentImageData = null;
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const presetGrid = document.getElementById('presetGrid');
+    const resultsArea = document.getElementById('resultsArea');
+    const modelSelect = document.getElementById('modelSelect');
+    const targetSelect = document.getElementById('targetSelect');
+    const cmapSelect = document.getElementById('cmapSelect');
+    const alphaRange = document.getElementById('alphaRange');
+    const alphaVal = document.getElementById('alphaVal');
+    const autoCropToggle = document.getElementById('autoCropToggle');
+
+    // Drag and Drop handlers
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, e => { e.preventDefault(); dropZone.classList.remove('dragover'); });
+    });
+    dropZone.addEventListener('drop', e => {
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) processImageFile(file);
+    });
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) processImageFile(file);
+    });
+
+    // Paste from clipboard (Ctrl+V)
+    window.addEventListener('paste', e => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) processImageFile(file);
+          break;
+        }
+      }
+    });
+
+    // Controls change handlers -> auto re-predict if an image is loaded
+    alphaRange.addEventListener('input', e => {
+      alphaVal.textContent = Math.round(e.target.value * 100) + '%';
+    });
+    [modelSelect, targetSelect, cmapSelect, alphaRange, autoCropToggle].forEach(control => {
+      control.addEventListener('change', () => {
+        if (currentImageData) {
+          sendForPrediction(currentImageData);
+        }
+      });
+    });
+
+    function processImageFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        currentImageData = e.target.result;
+        sendForPrediction(currentImageData);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function sendForPrediction(base64Data) {
+      dropZone.querySelector('.upload-title').innerHTML = '<span class="loading-spinner"></span> Running ConvNeXt &amp; Grad-CAM inference...';
+
+      const payload = {
+        image: base64Data,
+        model_id: modelSelect.value || null,
+        target_class: targetSelect.value,
+        colormap: cmapSelect.value,
+        alpha: parseFloat(alphaRange.value),
+        auto_crop: autoCropToggle.checked,
+      };
+
+      try {
+        const res = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert('Error: ' + data.error);
+          return;
+        }
+        renderResults(data);
+      } catch (err) {
+        alert('Inference failed: ' + err);
+      } finally {
+        dropZone.querySelector('.upload-title').textContent = 'Drop an image here, click to browse, or paste with Ctrl+V';
+      }
+    }
+
+    function renderResults(data) {
+      resultsArea.style.display = 'grid';
+      resultsArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Visuals
+      document.getElementById('cropImg').src = data.cropped_face;
+      document.getElementById('camImg').src = data.cam_overlay;
+      document.getElementById('activeTargetBadge').textContent = 'Class: ' + data.cam_target.toUpperCase();
+      document.getElementById('activeModelBadge').textContent = 'Model: ' + data.model_id;
+
+      // Emotion Hero
+      const emo = data.predicted_emotion;
+      const hero = document.getElementById('heroEmotion');
+      hero.textContent = emo;
+      hero.style.color = EMOTION_COLORS[emo] || '#fff';
+
+      document.getElementById('calibConfVal').textContent = (data.calibrated_confidence * 100).toFixed(1) + '%';
+      document.getElementById('rawConfVal').textContent = (data.raw_confidence * 100).toFixed(1) + '%';
+
+      document.getElementById('faceDetectStatus').textContent = data.face_detected 
+        ? 'Face automatically detected & cropped' 
+        : 'Direct crop processed';
+
+      // Probabilities
+      const barsContainer = document.getElementById('probBars');
+      barsContainer.innerHTML = '';
+      data.probabilities.forEach(p => {
+        const pct = (p.calibrated * 100).toFixed(1);
+        const col = EMOTION_COLORS[p.name] || '#6366f1';
+        barsContainer.innerHTML += `
+          <div class="prob-row">
+            <div class="prob-meta">
+              <span style="color:${col};">${p.name}</span>
+              <span>${pct}%</span>
+            </div>
+            <div class="bar-bg">
+              <div class="bar-fill" style="width: ${pct}%; background: ${col};"></div>
+            </div>
+          </div>
+        `;
+      });
+
+      // Explanation insight
+      document.getElementById('explainText').innerHTML = `
+        Predicted <strong>${emo.toUpperCase()}</strong> with <strong>${(data.calibrated_confidence * 100).toFixed(1)}% calibrated confidence</strong>.
+        Attribution is computed for class: <strong>${data.cam_target.toUpperCase()}</strong>.
+        Using model: <code>${data.model_id}</code>.
+      `;
+    }
+
+    // Load available models into dropdown
+    async function loadModels() {
+      try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+        modelSelect.innerHTML = '';
+        data.models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.display_name;
+          if (m.id === data.active || m.is_default) {
+            opt.selected = true;
+            document.getElementById('headerModelText').textContent = m.display_name;
+          }
+          modelSelect.appendChild(opt);
+        });
+      } catch (e) {
+        modelSelect.innerHTML = '<option value="">Default Model</option>';
+      }
+    }
+
+    // Load sample test faces
+    async function loadSamples() {
+      try {
+        const res = await fetch('/api/samples');
+        const samples = await res.json();
+        document.getElementById('sampleCount').textContent = `${samples.length} presets`;
+        presetGrid.innerHTML = '';
+        samples.forEach(s => {
+          const pill = document.createElement('div');
+          pill.className = 'sample-pill';
+          const imgUrl = `/api/sample-image?path=${encodeURIComponent(s.path)}`;
+          pill.innerHTML = `
+            <img src="${imgUrl}" alt="${s.emotion}" loading="lazy" />
+            <span style="color: ${EMOTION_COLORS[s.emotion] || '#fff'};">${s.emotion}</span>
+          `;
+          pill.onclick = async () => {
+            const r = await fetch(imgUrl);
+            const blob = await r.blob();
+            const reader = new FileReader();
+            reader.onload = e => {
+              currentImageData = e.target.result;
+              sendForPrediction(currentImageData);
+            };
+            reader.readAsDataURL(blob);
+          };
+          presetGrid.appendChild(pill);
+        });
+      } catch (e) {
+        document.getElementById('sampleCount').textContent = 'Error';
+      }
+    }
+
+    loadModels();
+    loadSamples();
+  </script>
+</body>
+</html>
